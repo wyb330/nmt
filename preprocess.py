@@ -16,6 +16,9 @@ def main(args):
         create_bpe(src_file, src_bpe_file, hparams.bpe_num_symbols)
         print('step [2/6] creating target bpe file')
         create_bpe(tgt_file, tgt_bpe_file, hparams.bpe_num_symbols)
+    else:
+        print('step [1/6] passed')
+        print('step [2/6] passed')
 
     src_bpe_text = os.path.join(out_dir, '{}.bpe'.format(os.path.basename(src_file)))
     tgt_bpe_text = os.path.join(out_dir, '{}.bpe'.format(os.path.basename(tgt_file)))
@@ -28,6 +31,9 @@ def main(args):
         tgt_sents = convert_to_bpe(tgt_file, tgt_bpe_file)
         with open(tgt_bpe_text, 'w', encoding='utf8') as f:
             f.write('\n'.join(tgt_sents))
+    else:
+        print('step [3/6] passed')
+        print('step [4/6] passed')
 
     src_vocab_bpe_file = os.path.join(out_dir, 'vocab.bpe.{}.src'.format(hparams.bpe_num_symbols))
     tgt_vocab_bpe_file = os.path.join(out_dir, 'vocab.bpe.{}.tgt'.format(hparams.bpe_num_symbols))

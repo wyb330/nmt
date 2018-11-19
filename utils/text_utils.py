@@ -32,3 +32,17 @@ def tokenize_sent(sent):
     sent = remove_puncuations(sent)
     words = sent.lower().split()
     return words
+
+
+def read_text(filename, max_lines=0, encoding="utf8"):
+    with open(filename, 'r', encoding=encoding) as f:
+        lines = []
+        count = 0
+        for line in f:
+            count += 1
+            if not line:
+                break
+            lines.append(line.strip())
+            if (max_lines > 0) and (count > max_lines):
+                break
+        return lines
