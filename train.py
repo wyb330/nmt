@@ -105,12 +105,12 @@ def main(args, max_data_size=0):
         checkpoint_path = os.path.join(in_dir, "nmt.ckpt")
 
         sess.run(iterator.initializer)
-        while epochs <= hparams.num_train_epochs:
+        while epochs <= args.num_train_epochs:
             start_time = time.time()
             try:
                 loss, global_step, learning_rate, accuracy, summary = model.step(sess)
                 step_in_epoch += 1
-                if global_step % hparams.summary_per_steps == 0:
+                if global_step % args.summary_per_steps == 0:
                     write_summary(writer, summary, global_step)
 
             except tf.errors.OutOfRangeError:
@@ -125,7 +125,7 @@ def main(args, max_data_size=0):
             logger.info("Epoch %-3d Step %-d - %-d [%.3f sec, loss=%.4f, acc=%.3f, lr=%f]" %
                         (epochs, global_step, step_in_epoch, sec_per_step, loss, accuracy, learning_rate))
 
-            if global_step % hparams.steps_per_checkpoint == 0:
+            if global_step % args.steps_per_checkpoint == 0:
                 model_checkpoint_path = saver.save(sess, checkpoint_path, global_step=global_step)
                 logger.info("Saved checkpoint to {}".format(model_checkpoint_path))
 
@@ -140,5 +140,8 @@ if __name__ == '__main__':
     parser.add_argument('--in_dir')
     parser.add_argument('--model_type', default='attention')
     parser.add_argument('--restore_step', default=0)
+    parser.add_argument('--num_train_epochs', default=10000)
+    parser.add_argument('--steps_per_checkpoint', default=200)
+    parser.add_argument('--summary_per_steps', default=200)
     args = parser.parse_args()
     main(args)

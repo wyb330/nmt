@@ -12,3 +12,8 @@ python preprocess.py --out_dir /out/path
 ```
 python train.py --in_dir /input/path
 ```
+
+3. **Predict**
+```
+python predict.py --model_path /model/path --source /input/path
+```
