@@ -134,7 +134,7 @@ def main(args, max_data_size=10000, shuffle=True, display=False):
                     translations.append(t)
 
                 if step_count % 100 == 0:
-                    bleu_score = moses_multi_bleu(references, translations)
+                    bleu_score = moses_multi_bleu(references, translations, args.model_path)
                     logger.info('bleu score = {0:.3f}'.format(bleu_score))
 
                 step_count += 1
@@ -144,7 +144,7 @@ def main(args, max_data_size=10000, shuffle=True, display=False):
 
         logger.info('compute bleu score...')
         # bleu_score = compute_bleu_score(references, translations)
-        bleu_score = moses_multi_bleu(references, translations)
+        bleu_score = moses_multi_bleu(references, translations, args.model_path)
         logger.info('bleu score = {0:.3f}'.format(bleu_score))
 
 

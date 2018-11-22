@@ -22,7 +22,7 @@ import numpy as np
 import tensorflow as tf
 
 
-def moses_multi_bleu(hypotheses, references, lowercase=False):
+def moses_multi_bleu(hypotheses, references, path, lowercase=False):
     """Calculate the bleu score for hypotheses and references
     using the MOSES ulti-bleu.perl script.
 
@@ -42,8 +42,8 @@ def moses_multi_bleu(hypotheses, references, lowercase=False):
     training_dir = os.path.dirname(os.path.realpath(__file__))
     multi_bleu_path = os.path.join(training_dir, "multi-bleu.perl")
 
-    hypothesis_name = os.path.join(training_dir, "hypothesis.txt")
-    reference_name = os.path.join(training_dir, "reference.txt")
+    hypothesis_name = os.path.join(path, "hypothesis.txt")
+    reference_name = os.path.join(path, "reference.txt")
     with open(hypothesis_name, 'w', encoding='utf8') as hypothesis_file:
         hypothesis_file.write("\n".join(hypotheses))
     with open(reference_name, 'w', encoding='utf8') as reference_file:
