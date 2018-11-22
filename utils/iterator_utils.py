@@ -14,6 +14,12 @@ class InferenceInput(
     pass
 
 
+class EvalInput(
+    collections.namedtuple("EvalInput",
+                           ("initializer", "source", "target_out", "source_text", "source_length", "target_length"))):
+    pass
+
+
 def create_dataset(hparams, src_dataset, tgt_dataset, src_vocab, tgt_vocab, output_buffer_size, num_parallel_calls=4):
     src_dataset = src_dataset.map(lambda x: tf.string_split([x]).values,
                                   num_parallel_calls=num_parallel_calls).prefetch(output_buffer_size)
@@ -147,3 +153,55 @@ def get_inference_iterator(hparams, datasets, num_parallel_calls=4):
 
     return batched_input
 
+
+def get_eval_iterator(hparams, datasets, eos, num_parallel_calls=4, shuffle=True):
+    output_buffer_size = hparams.batch_size * 1000
+    src_vocab, tgt_vocab, src_dataset, tgt_dataset, tgt_reverse_vocab, src_vocab_size, tgt_vocab_size = datasets
+    src_text_dataset = src_dataset.map(lambda x: tf.string_split([x]).values,
+                                       num_parallel_calls=num_parallel_calls).prefetch(output_buffer_size)
+    src_dataset = src_dataset.map(lambda x: tf.string_split([x]).values,
+                                  num_parallel_calls=num_parallel_calls).prefetch(output_buffer_size)
+    tgt_dataset = tgt_dataset.map(lambda x: tf.string_split([x]).values,
+                                  num_parallel_calls=num_parallel_calls).prefetch(output_buffer_size)
+
+    eos_id = tf.cast(tgt_vocab.lookup(tf.constant(eos)), tf.int32)
+    src_dataset = src_dataset.map(lambda x: tf.cast(src_vocab.lookup(x), tf.int32),
+                                  num_parallel_calls=num_parallel_calls).prefetch(output_buffer_size)
+    tgt_dataset = tgt_dataset.map(lambda x: tf.cast(tgt_vocab.lookup(x), tf.int32),
+                                  num_parallel_calls=num_parallel_calls).prefetch(output_buffer_size)
+
+    src_dataset = src_dataset.map(lambda x: x[:hparams.infer_src_max_len])
+    tgt_dataset = tgt_dataset.map(lambda x: x[:hparams.infer_tgt_max_len])
+
+    dataset = tf.data.Dataset.zip((src_dataset, tgt_dataset, src_text_dataset))
+    if shuffle:
+        dataset = dataset.shuffle(buffer_size=1000)
+    dataset = dataset.map(lambda src, tgt, src_text: (src,
+                                                      tf.concat((tgt, [eos_id]), axis=0),
+                                                      src_text,
+                                                      tf.size(src),
+                                                      tf.size(tgt)
+                                                      ),
+                          num_parallel_calls=num_parallel_calls).prefetch(output_buffer_size)
+
+    def batching_func(x):
+        return x.padded_batch(hparams.batch_size,
+                              padded_shapes=(tf.TensorShape([None]),
+                                             tf.TensorShape([None]),
+                                             tf.TensorShape([None]),
+                                             tf.TensorShape([]),
+                                             tf.TensorShape([])
+                                             ),
+                              padding_values=(eos_id, eos_id, '', 0, 0))
+
+    batched_dataset = batching_func(dataset)
+    batched_iter = batched_dataset.make_initializable_iterator()
+    src_ids, tgt_out_ids, src_texts, src_length, tgt_length = batched_iter.get_next()
+    batched_input = EvalInput(initializer=batched_iter.initializer,
+                              source=src_ids,
+                              target_out=tgt_out_ids,
+                              source_text=src_texts,
+                              source_length=src_length,
+                              target_length=tgt_length)
+
+    return batched_input
