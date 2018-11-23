@@ -15,17 +15,17 @@ logger = logging.getLogger("train")
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s\t%(message)s")
 
 
-def load_dataset(args, in_dir):
+def load_dataset(args, vocab_dir):
     src_file = args.source
     tgt_file = args.target
 
-    src_bpe_text = os.path.join(in_dir, '{}.bpe'.format(os.path.basename(src_file)))
-    tgt_bpe_text = os.path.join(in_dir, '{}.bpe'.format(os.path.basename(tgt_file)))
+    src_bpe_text = os.path.join(vocab_dir, '{}.bpe'.format(os.path.basename(src_file)))
+    tgt_bpe_text = os.path.join(vocab_dir, '{}.bpe'.format(os.path.basename(tgt_file)))
     src_dataset = tf.data.TextLineDataset(src_bpe_text)
     tgt_dataset = tf.data.TextLineDataset(tgt_bpe_text)
 
-    src_vocab_bpe_file = os.path.join(in_dir, 'vocab.bpe.{}.src'.format(hparams.bpe_num_symbols))
-    tgt_vocab_bpe_file = os.path.join(in_dir, 'vocab.bpe.{}.tgt'.format(hparams.bpe_num_symbols))
+    src_vocab_bpe_file = os.path.join(vocab_dir, 'vocab.bpe.{}.src'.format(hparams.bpe_num_symbols))
+    tgt_vocab_bpe_file = os.path.join(vocab_dir, 'vocab.bpe.{}.tgt'.format(hparams.bpe_num_symbols))
     if os.path.exists(src_vocab_bpe_file) and os.path.exists(tgt_vocab_bpe_file):
         src_vocab, src_vocab_size = load_vocab_table(src_vocab_bpe_file)
         tgt_vocab, tgt_vocab_size = load_vocab_table(tgt_vocab_bpe_file)
@@ -45,18 +45,18 @@ def create_vocab(text_file, vocab_file, vocab_size, tokenize_fn):
             f.write(word + '\n')
 
 
-def check_vocab(args, in_dir):
+def check_vocab(args, vocab_dir):
     src_file = args.source
     tgt_file = args.target
 
-    src_bpe_file = os.path.join(in_dir, 'bpe-{}.src'.format(hparams.bpe_num_symbols))
-    tgt_bpe_file = os.path.join(in_dir, 'bpe-{}.tgt'.format(hparams.bpe_num_symbols))
+    src_bpe_file = os.path.join(vocab_dir, 'bpe-{}.src'.format(hparams.bpe_num_symbols))
+    tgt_bpe_file = os.path.join(vocab_dir, 'bpe-{}.tgt'.format(hparams.bpe_num_symbols))
     if not os.path.exists(src_bpe_file) or not os.path.exists(tgt_bpe_file):
         create_bpe(src_file, src_bpe_file, hparams.bpe_num_symbols)
         create_bpe(tgt_file, tgt_bpe_file, hparams.bpe_num_symbols)
 
-    src_bpe_text = os.path.join(in_dir, '{}.bpe'.format(os.path.basename(src_file)))
-    tgt_bpe_text = os.path.join(in_dir, '{}.bpe'.format(os.path.basename(tgt_file)))
+    src_bpe_text = os.path.join(vocab_dir, '{}.bpe'.format(os.path.basename(src_file)))
+    tgt_bpe_text = os.path.join(vocab_dir, '{}.bpe'.format(os.path.basename(tgt_file)))
     if not os.path.exists(src_bpe_text) or not os.path.exists(tgt_bpe_text):
         src_sents = convert_to_bpe(src_file, src_bpe_file)
         with open(src_bpe_text, 'w', encoding='utf8') as f:
@@ -71,12 +71,12 @@ def write_summary(writer, summary, num_step):
 
 
 def main(args, max_data_size=0):
-    in_dir = args.in_dir
-    log_file_handler = logging.FileHandler(os.path.join(in_dir, 'train.log'))
+    vocab_dir = args.vocab_dir
+    log_file_handler = logging.FileHandler(os.path.join(vocab_dir, 'train.log'))
     logger.addHandler(log_file_handler)
 
-    check_vocab(args, in_dir)
-    datasets = load_dataset(args, in_dir)
+    check_vocab(args, vocab_dir)
+    datasets = load_dataset(args, vocab_dir)
     iterator = iterator_utils.get_iterator(hparams, datasets, max_rows=max_data_size)
     src_vocab, tgt_vocab, _, _, src_vocab_size, tgt_vocab_size = datasets
     hparams.add_hparam('is_training', True)
@@ -86,10 +86,10 @@ def main(args, max_data_size=0):
     sess, model = load_model(hparams, tf.contrib.learn.ModeKeys.TRAIN, iterator, src_vocab, tgt_vocab)
 
     if args.restore_step > 0:
-        checkpoint_path = os.path.join(in_dir, 'nmt.ckpt')
+        checkpoint_path = os.path.join(vocab_dir, 'nmt.ckpt')
         ckpt = '%s-%d' % (checkpoint_path, hparams.restore_step)
     else:
-        ckpt = tf.train.latest_checkpoint(in_dir)
+        ckpt = tf.train.latest_checkpoint(vocab_dir)
     saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
     if ckpt:
         saver.restore(sess, ckpt)
@@ -99,12 +99,12 @@ def main(args, max_data_size=0):
 
     sess.run(tf.tables_initializer())
     with sess:
-        writer = tf.summary.FileWriter(in_dir, sess.graph)
+        writer = tf.summary.FileWriter(vocab_dir, sess.graph)
         logger.info("starting training...")
         epochs = 1
         step_in_epoch = 0
         learning_rate = hparams.learning_rate
-        checkpoint_path = os.path.join(in_dir, "nmt.ckpt")
+        checkpoint_path = os.path.join(vocab_dir, "nmt.ckpt")
 
         sess.run(iterator.initializer)
         while epochs <= args.num_train_epochs:
@@ -139,13 +139,13 @@ def main(args, max_data_size=0):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in_dir')
+    parser.add_argument('--vocab_dir')
     parser.add_argument('--source', required=True)
     parser.add_argument('--target', required=True)
     parser.add_argument('--model_type', default='attention')
     parser.add_argument('--restore_step', default=0)
     parser.add_argument('--num_train_epochs', default=10000)
-    parser.add_argument('--steps_per_checkpoint', default=200)
-    parser.add_argument('--summary_per_steps', default=200)
+    parser.add_argument('--steps_per_checkpoint', default=1000)
+    parser.add_argument('--summary_per_steps', default=500)
     args = parser.parse_args()
     main(args)

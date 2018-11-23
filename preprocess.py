@@ -6,9 +6,11 @@ from hparams import hparams
 
 def main(args):
     out_dir = args.out_dir
-    src_file = hparams.source
-    tgt_file = hparams.target
+    src_file = args.source
+    tgt_file = args.target
 
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
     src_bpe_file = os.path.join(out_dir, 'bpe-{}.src'.format(hparams.bpe_num_symbols))
     tgt_bpe_file = os.path.join(out_dir, 'bpe-{}.tgt'.format(hparams.bpe_num_symbols))
     if not os.path.exists(src_bpe_file) or not os.path.exists(tgt_bpe_file):

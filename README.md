@@ -10,7 +10,7 @@ python preprocess.py --source [source file] --target [target file] --out_dir /ou
 
 2. **Training**
 ```
-python train.py --source [source file] --target [target file] --in_dir /input/path
+python train.py --source [source file] --target [target file] --vocab_dir /vocab/path
 ```
 
 3. **Predict**
