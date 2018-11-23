@@ -5,12 +5,12 @@
 
 1. **Preprocess the data**
 ```
-python preprocess.py --out_dir /out/path
+python preprocess.py --source [source file] --target [target file] --out_dir /out/path
 ```
 
 2. **Training**
 ```
-python train.py --in_dir /input/path
+python train.py --source [source file] --target [target file] --in_dir /input/path
 ```
 
 3. **Predict**

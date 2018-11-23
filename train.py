@@ -8,15 +8,16 @@ from vocab.vocab_utils import build_vocab_table, get_vocaburary_list, convert_to
 import utils.iterator_utils as iterator_utils
 from argparse import ArgumentParser
 from hparams import hparams
+from pprint import pprint
 
 
 logger = logging.getLogger("train")
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s\t%(message)s")
 
 
-def load_dataset(in_dir):
-    src_file = hparams.source
-    tgt_file = hparams.target
+def load_dataset(args, in_dir):
+    src_file = args.source
+    tgt_file = args.target
 
     src_bpe_text = os.path.join(in_dir, '{}.bpe'.format(os.path.basename(src_file)))
     tgt_bpe_text = os.path.join(in_dir, '{}.bpe'.format(os.path.basename(tgt_file)))
@@ -44,9 +45,9 @@ def create_vocab(text_file, vocab_file, vocab_size, tokenize_fn):
             f.write(word + '\n')
 
 
-def check_vocab(in_dir):
-    src_file = hparams.source
-    tgt_file = hparams.target
+def check_vocab(args, in_dir):
+    src_file = args.source
+    tgt_file = args.target
 
     src_bpe_file = os.path.join(in_dir, 'bpe-{}.src'.format(hparams.bpe_num_symbols))
     tgt_bpe_file = os.path.join(in_dir, 'bpe-{}.tgt'.format(hparams.bpe_num_symbols))
@@ -74,13 +75,14 @@ def main(args, max_data_size=0):
     log_file_handler = logging.FileHandler(os.path.join(in_dir, 'train.log'))
     logger.addHandler(log_file_handler)
 
-    check_vocab(in_dir)
-    datasets = load_dataset(in_dir)
+    check_vocab(args, in_dir)
+    datasets = load_dataset(args, in_dir)
     iterator = iterator_utils.get_iterator(hparams, datasets, max_rows=max_data_size)
     src_vocab, tgt_vocab, _, _, src_vocab_size, tgt_vocab_size = datasets
     hparams.add_hparam('is_training', True)
     hparams.add_hparam('vocab_size_source', src_vocab_size)
     hparams.add_hparam('vocab_size_target', tgt_vocab_size)
+    pprint(hparams.values())
     sess, model = load_model(hparams, tf.contrib.learn.ModeKeys.TRAIN, iterator, src_vocab, tgt_vocab)
 
     if args.restore_step > 0:
@@ -138,6 +140,8 @@ def main(args, max_data_size=0):
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--in_dir')
+    parser.add_argument('--source', required=True)
+    parser.add_argument('--target', required=True)
     parser.add_argument('--model_type', default='attention')
     parser.add_argument('--restore_step', default=0)
     parser.add_argument('--num_train_epochs', default=10000)
