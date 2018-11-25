@@ -153,8 +153,7 @@ class AttentionModel(object):
                                                  decoder_helper,
                                                  initial_state,
                                                  output_layer=output_layer)
-                final_outputs, final_state, _ = decoder.dynamic_decode(dec,
-                                                                       swap_memory=True)
+                final_outputs, final_state, _ = decoder.dynamic_decode(dec)
                 output_ids = final_outputs.rnn_output
                 outputs = final_outputs.sample_id
             else:

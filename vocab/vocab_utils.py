@@ -34,7 +34,7 @@ def get_vocaburary_list(text_file, vocab_size, tokenize_fn=None):
 
 
 def build_vocab_bpe(text_file, hparams, vocab_file):
-    vocab_list = get_vocaburary_list(text_file, 0, tokenize_fn=None)
+    vocab_list = get_vocaburary_list(text_file, hparams.bpe_num_symbols, tokenize_fn=None)
     vocab_list = [hparams.unk, hparams.sos, hparams.eos, hparams.pad] + vocab_list
     if not os.path.exists(vocab_file):
         with open(vocab_file, 'w', encoding='utf8') as f:

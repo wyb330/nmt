@@ -60,12 +60,10 @@ def get_iterator(hparams, datasets, max_rows=0, num_parallel_calls=4):
     tgt_dataset = tgt_dataset.map(lambda x: tf.cast(tgt_vocab.lookup(x), tf.int32),
                                   num_parallel_calls=num_parallel_calls).prefetch(output_buffer_size)
 
-    if hparams.src_max_len > 0:
-        src_dataset = src_dataset.map(lambda x: x[:hparams.src_max_len])
-    if hparams.tgt_max_len > 0:
-        tgt_dataset = tgt_dataset.map(lambda x: x[:hparams.tgt_max_len])
-
     dataset = tf.data.Dataset.zip((src_dataset, tgt_dataset))
+    # source,target의 길이가 max_len보다 큰 문장은 학습에서 제외
+    if hparams.src_max_len > 0:
+        dataset = dataset.filter(lambda src, tgt: tf.logical_and(tf.size(src) < hparams.src_max_len, tf.size(tgt) < hparams.tgt_max_len))
     dataset = dataset.shuffle(buffer_size=1000)
     dataset = dataset.map(lambda src, tgt: (src,
                                             tf.concat(([sos_id], tgt), axis=0),
@@ -75,22 +73,13 @@ def get_iterator(hparams, datasets, max_rows=0, num_parallel_calls=4):
                           num_parallel_calls=num_parallel_calls).prefetch(output_buffer_size)
 
     def batching_func(x):
-        if hparams.src_max_len > 0:
-            return x.padded_batch(hparams.batch_size,
-                                  padded_shapes=(tf.TensorShape([hparams.src_max_len]),
-                                                 tf.TensorShape([hparams.tgt_max_len]),
-                                                 tf.TensorShape([hparams.tgt_max_len]),
-                                                 tf.TensorShape([]),
-                                                 tf.TensorShape([])),
-                                  padding_values=(pad_id, pad_id, pad_id, 0, 0))
-        else:
-            return x.padded_batch(hparams.batch_size,
-                                  padded_shapes=(tf.TensorShape([None]),
-                                                 tf.TensorShape([None]),
-                                                 tf.TensorShape([None]),
-                                                 tf.TensorShape([]),
-                                                 tf.TensorShape([])),
-                                  padding_values=(pad_id, pad_id, pad_id, 0, 0))
+        return x.padded_batch(hparams.batch_size,
+                              padded_shapes=(tf.TensorShape([None]),
+                                             tf.TensorShape([None]),
+                                             tf.TensorShape([None]),
+                                             tf.TensorShape([]),
+                                             tf.TensorShape([])),
+                              padding_values=(pad_id, pad_id, pad_id, 0, 0))
 
     num_buckets = hparams.bucket
     if num_buckets > 1:
