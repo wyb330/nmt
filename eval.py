@@ -74,7 +74,7 @@ def compute_bleu_score(references, translations, max_order=4, smooth=False):
     return bleu_score * 100
 
 
-def main(args, max_data_size=10000, shuffle=True, display=False):
+def main(args, max_data_size=0, shuffle=True, display=False):
     hparams.set_hparam('batch_size', 10)
     hparams.add_hparam('is_training', False)
     check_vocab(args)
@@ -111,7 +111,7 @@ def main(args, max_data_size=10000, shuffle=True, display=False):
         start_time = time.time()
         while True:
             try:
-                if step_count * hparams.batch_size > max_data_size:
+                if (max_data_size > 0) and (step_count * hparams.batch_size > max_data_size):
                     break
                 if step_count % 10 == 0:
                     t = time.time() - start_time

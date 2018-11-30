@@ -19,21 +19,28 @@ def load_dataset(args, vocab_dir):
     src_file = args.source
     tgt_file = args.target
 
-    src_bpe_text = os.path.join(vocab_dir, '{}.bpe'.format(os.path.basename(src_file)))
-    tgt_bpe_text = os.path.join(vocab_dir, '{}.bpe'.format(os.path.basename(tgt_file)))
-    src_dataset = tf.data.TextLineDataset(src_bpe_text)
-    tgt_dataset = tf.data.TextLineDataset(tgt_bpe_text)
-
-    src_vocab_bpe_file = os.path.join(vocab_dir, 'vocab.bpe.{}.src'.format(hparams.bpe_num_symbols))
-    tgt_vocab_bpe_file = os.path.join(vocab_dir, 'vocab.bpe.{}.tgt'.format(hparams.bpe_num_symbols))
-    if os.path.exists(src_vocab_bpe_file) and os.path.exists(tgt_vocab_bpe_file):
-        src_vocab, src_vocab_size = load_vocab_table(src_vocab_bpe_file)
-        tgt_vocab, tgt_vocab_size = load_vocab_table(tgt_vocab_bpe_file)
+    if hparams.use_bpe:
+        src_text = os.path.join(vocab_dir, '{}.bpe'.format(os.path.basename(src_file)))
+        tgt_text = os.path.join(vocab_dir, '{}.bpe'.format(os.path.basename(tgt_file)))
+        src_vocab_file = os.path.join(vocab_dir, 'vocab.bpe.{}.src'.format(hparams.bpe_num_symbols))
+        tgt_vocab_file = os.path.join(vocab_dir, 'vocab.bpe.{}.tgt'.format(hparams.bpe_num_symbols))
     else:
-        src_vocab, src_vocab_size = build_vocab_table(src_bpe_text, hparams, src_vocab_bpe_file)
-        tgt_vocab, tgt_vocab_size = build_vocab_table(tgt_bpe_text, hparams, tgt_vocab_bpe_file)
-    logger.info('{} vocab bpe size={}'.format(src_vocab_bpe_file, src_vocab_size))
-    logger.info('{} vocab bpe size={}'.format(tgt_vocab_bpe_file, tgt_vocab_size))
+        src_text = src_file
+        tgt_text = tgt_file
+        src_vocab_file = os.path.join(vocab_dir, 'vocab.src')
+        tgt_vocab_file = os.path.join(vocab_dir, 'vocab.tgt')
+
+    src_dataset = tf.data.TextLineDataset(src_text)
+    tgt_dataset = tf.data.TextLineDataset(tgt_text)
+
+    if os.path.exists(src_vocab_file) and os.path.exists(tgt_vocab_file):
+        src_vocab, src_vocab_size = load_vocab_table(src_vocab_file)
+        tgt_vocab, tgt_vocab_size = load_vocab_table(tgt_vocab_file)
+    else:
+        src_vocab, src_vocab_size = build_vocab_table(src_text, hparams, src_vocab_file)
+        tgt_vocab, tgt_vocab_size = build_vocab_table(tgt_text, hparams, tgt_vocab_file)
+    logger.info('{} vocab size={}'.format(src_vocab_file, src_vocab_size))
+    logger.info('{} vocab size={}'.format(tgt_vocab_file, tgt_vocab_size))
 
     return src_vocab, tgt_vocab, src_dataset, tgt_dataset, src_vocab_size, tgt_vocab_size
 
@@ -48,6 +55,9 @@ def create_vocab(text_file, vocab_file, vocab_size, tokenize_fn):
 def check_vocab(args, vocab_dir):
     src_file = args.source
     tgt_file = args.target
+
+    if not hparams.use_bpe:
+        return
 
     src_bpe_file = os.path.join(vocab_dir, 'bpe-{}.src'.format(hparams.bpe_num_symbols))
     tgt_bpe_file = os.path.join(vocab_dir, 'bpe-{}.tgt'.format(hparams.bpe_num_symbols))

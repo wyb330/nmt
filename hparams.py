@@ -18,6 +18,7 @@ hparams = HParams(
     final_learning_rate=0.00002,
     warmup_steps=4000,
     bucket=0,
+    use_bpe=False,
     attention_mechanism='scaled_luong',
     beam_width=1,
     encoder_type='bi',

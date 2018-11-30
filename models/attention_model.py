@@ -4,6 +4,7 @@ from tensorflow.contrib.seq2seq.python.ops import attention_wrapper as wrapper, 
 from tensorflow.python.ops import init_ops, variable_scope
 from tensorflow.python.layers.core import Dense
 from tensorflow.python.util import nest
+from tensorflow.contrib.seq2seq import LuongAttention, BahdanauAttention
 import math
 from models.seq_encoder import simple_embed_rnn, bidirectional_embed_rnn, single_rnn_cell
 
@@ -262,27 +263,13 @@ def create_attention_mechanism(attention_option, num_units, memory,
                                source_sequence_length):
     """Create attention mechanism based on the attention_option."""
     if attention_option == "luong":
-        attention_mechanism = tf.contrib.seq2seq.LuongAttention(
-            num_units,
-            memory,
-            memory_sequence_length=source_sequence_length)
+        attention_mechanism = LuongAttention(num_units, memory, memory_sequence_length=source_sequence_length)
     elif attention_option == "scaled_luong":
-        attention_mechanism = tf.contrib.seq2seq.LuongAttention(
-            num_units,
-            memory,
-            memory_sequence_length=source_sequence_length,
-            scale=True)
+        attention_mechanism = LuongAttention(num_units, memory, memory_sequence_length=source_sequence_length, scale=True)
     elif attention_option == "bahdanau":
-        attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(
-            num_units,
-            memory,
-            memory_sequence_length=source_sequence_length)
+        attention_mechanism = BahdanauAttention(num_units, memory, memory_sequence_length=source_sequence_length)
     elif attention_option == "normed_bahdanau":
-        attention_mechanism = tf.contrib.seq2seq.BahdanauAttention(
-            num_units,
-            memory,
-            memory_sequence_length=source_sequence_length,
-            normalize=True)
+        attention_mechanism = BahdanauAttention(num_units, memory, memory_sequence_length=source_sequence_length, normalize=True)
     else:
         raise ValueError("Unknown attention option %s" % attention_option)
 
