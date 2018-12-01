@@ -38,16 +38,14 @@ def main(args):
             print('step [3/6] passed')
             print('step [4/6] passed')
 
+    src_vocab_file = os.path.join(out_dir, 'vocab.src')
+    tgt_vocab_file = os.path.join(out_dir, 'vocab.tgt')
     if hparams.use_bpe:
-        src_vocab_file = os.path.join(out_dir, 'vocab.bpe.{}.src'.format(hparams.bpe_num_symbols))
-        tgt_vocab_file = os.path.join(out_dir, 'vocab.bpe.{}.tgt'.format(hparams.bpe_num_symbols))
         print('step [5/6] building source vocab bpe file')
         build_vocab_bpe(src_bpe_text, hparams, src_vocab_file)
         print('step [6/6] building target vocab bpe file')
         build_vocab_bpe(tgt_bpe_text, hparams, tgt_vocab_file)
     else:
-        src_vocab_file = os.path.join(out_dir, 'vocab.src')
-        tgt_vocab_file = os.path.join(out_dir, 'vocab.tgt')
         print('step [1/2] building source vocab file')
         build_vocab(src_file, hparams, src_vocab_file)
         print('step [2/2] building target vocab file')

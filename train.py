@@ -19,16 +19,14 @@ def load_dataset(args, vocab_dir):
     src_file = args.source
     tgt_file = args.target
 
+    src_vocab_file = os.path.join(vocab_dir, 'vocab.src')
+    tgt_vocab_file = os.path.join(vocab_dir, 'vocab.tgt')
     if hparams.use_bpe:
         src_text = os.path.join(vocab_dir, '{}.bpe'.format(os.path.basename(src_file)))
         tgt_text = os.path.join(vocab_dir, '{}.bpe'.format(os.path.basename(tgt_file)))
-        src_vocab_file = os.path.join(vocab_dir, 'vocab.bpe.{}.src'.format(hparams.bpe_num_symbols))
-        tgt_vocab_file = os.path.join(vocab_dir, 'vocab.bpe.{}.tgt'.format(hparams.bpe_num_symbols))
     else:
         src_text = src_file
         tgt_text = tgt_file
-        src_vocab_file = os.path.join(vocab_dir, 'vocab.src')
-        tgt_vocab_file = os.path.join(vocab_dir, 'vocab.tgt')
 
     src_dataset = tf.data.TextLineDataset(src_text)
     tgt_dataset = tf.data.TextLineDataset(tgt_text)

@@ -16,6 +16,8 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s\t%(message)s")
 
 
 def check_vocab(args):
+    if not hparams.use_bpe:
+        return
     source = args.source
     target = args.target
     src_bpe_file = os.path.join(args.model_path, 'bpe-{}.src'.format(hparams.bpe_num_symbols))
@@ -32,21 +34,26 @@ def check_vocab(args):
         f.write('\n'.join(tgt_sents))
 
 
-def load_dataset():
-    in_src_bpe_file = os.path.join(args.model_path, 'bpe-input-{}.src'.format(hparams.bpe_num_symbols))
-    in_tgt_bpe_file = os.path.join(args.model_path, 'bpe-input-{}.tgt'.format(hparams.bpe_num_symbols))
+def load_dataset(args):
+    in_src_file = args.source
+    in_tgt_file = args.target
+    if hparams.use_bpe:
+        in_src_file = os.path.join(args.model_path, 'bpe-input-{}.src'.format(hparams.bpe_num_symbols))
+        in_tgt_file = os.path.join(args.model_path, 'bpe-input-{}.tgt'.format(hparams.bpe_num_symbols))
+        src_vocab_file = os.path.join(args.model_path, 'vocab.{}.src'.format(hparams.bpe_num_symbols))
+        tgt_vocab_file = os.path.join(args.model_path, 'vocab.{}.tgt'.format(hparams.bpe_num_symbols))
+    else:
+        src_vocab_file = os.path.join(args.model_path, 'vocab.src')
+        tgt_vocab_file = os.path.join(args.model_path, 'vocab.tgt')
+    src_vocab, src_vocab_size = load_vocab_table(src_vocab_file)
+    tgt_vocab, tgt_vocab_size = load_vocab_table(tgt_vocab_file)
+    tgt_reverse_vocab = build_reverse_vocab_table(tgt_vocab_file, hparams)
 
-    src_dataset = tf.data.TextLineDataset(in_src_bpe_file)
-    tgt_dataset = tf.data.TextLineDataset(in_tgt_bpe_file)
-    src_vocab_bpe_file = os.path.join(args.model_path, 'vocab.bpe.{}.src'.format(hparams.bpe_num_symbols))
-    tgt_vocab_bpe_file = os.path.join(args.model_path, 'vocab.bpe.{}.tgt'.format(hparams.bpe_num_symbols))
-    src_vocab, src_vocab_size = load_vocab_table(src_vocab_bpe_file)
-    tgt_vocab, tgt_vocab_size = load_vocab_table(tgt_vocab_bpe_file)
-    tgt_reverse_vocab = build_reverse_vocab_table(tgt_vocab_bpe_file, hparams)
-
-    with open(in_src_bpe_file, 'r', encoding='utf8') as f:
+    with open(in_src_file, 'r', encoding='utf8') as f:
         src_data_size = len(f.readlines())
 
+    src_dataset = tf.data.TextLineDataset(in_src_file)
+    tgt_dataset = tf.data.TextLineDataset(in_tgt_file)
     return (src_vocab, tgt_vocab, src_dataset, tgt_dataset, tgt_reverse_vocab, src_vocab_size, tgt_vocab_size), src_data_size
 
 
@@ -78,7 +85,7 @@ def main(args, max_data_size=0, shuffle=True, display=False):
     hparams.set_hparam('batch_size', 10)
     hparams.add_hparam('is_training', False)
     check_vocab(args)
-    datasets, src_data_size = load_dataset()
+    datasets, src_data_size = load_dataset(args)
     iterator = iterator_utils.get_eval_iterator(hparams, datasets, hparams.eos, shuffle=shuffle)
     src_vocab, tgt_vocab, src_dataset, tgt_dataset, tgt_reverse_vocab, src_vocab_size, tgt_vocab_size = datasets
     hparams.add_hparam('vocab_size_source', src_vocab_size)
@@ -97,8 +104,8 @@ def main(args, max_data_size=0, shuffle=True, display=False):
     else:
         raise Exception("can not found checkpoint file")
 
-    src_vocab_bpe_file = os.path.join(args.model_path, 'vocab.bpe.{}.src'.format(hparams.bpe_num_symbols))
-    src_reverse_vocab = build_reverse_vocab_table(src_vocab_bpe_file, hparams)
+    src_vocab_file = os.path.join(args.model_path, 'vocab.src')
+    src_reverse_vocab = build_reverse_vocab_table(src_vocab_file, hparams)
     sess.run(tf.tables_initializer())
 
     step_count = 1

@@ -14,6 +14,8 @@ logging.basicConfig(level=logging.DEBUG, format="%(asctime)s\t%(message)s")
 
 
 def check_vocab(args):
+    if not hparams.use_bpe:
+        return
     model_path = args.model_path
     source = args.source
     src_bpe_file = os.path.join(model_path, 'bpe-{}.src'.format(hparams.bpe_num_symbols))
@@ -24,8 +26,11 @@ def check_vocab(args):
 
 
 def get_data(args):
-    in_bpe_file = os.path.join(args.model_path, 'bpe-input-{}.src'.format(hparams.bpe_num_symbols))
-    with open(in_bpe_file, 'r', encoding='utf8') as f:
+    if hparams.use_bpe:
+        in_file = os.path.join(args.model_path, 'bpe-input-{}.src'.format(hparams.bpe_num_symbols))
+    else:
+        in_file = args.source
+    with open(in_file, 'r', encoding='utf8') as f:
         sents = f.readlines()
 
     sents = [sent.strip() for sent in sents]
@@ -35,11 +40,11 @@ def get_data(args):
 def load_dataset(args, src_placeholder):
     model_path = args.model_path
     src_dataset = tf.data.Dataset.from_tensor_slices(src_placeholder)
-    src_vocab_bpe_file = os.path.join(model_path, 'vocab.bpe.{}.src'.format(hparams.bpe_num_symbols))
-    tgt_vocab_bpe_file = os.path.join(model_path, 'vocab.bpe.{}.tgt'.format(hparams.bpe_num_symbols))
-    src_vocab, src_vocab_size = load_vocab_table(src_vocab_bpe_file)
-    tgt_vocab, tgt_vocab_size = load_vocab_table(tgt_vocab_bpe_file)
-    tgt_reverse_vocab = build_reverse_vocab_table(tgt_vocab_bpe_file, hparams)
+    src_vocab_file = os.path.join(model_path, 'vocab.src')
+    tgt_vocab_file = os.path.join(model_path, 'vocab.tgt')
+    src_vocab, src_vocab_size = load_vocab_table(src_vocab_file)
+    tgt_vocab, tgt_vocab_size = load_vocab_table(tgt_vocab_file)
+    tgt_reverse_vocab = build_reverse_vocab_table(tgt_vocab_file, hparams)
 
     return src_vocab, tgt_vocab, src_dataset, tgt_reverse_vocab, src_vocab_size, tgt_vocab_size
 
@@ -50,7 +55,7 @@ def bytes2sent(bytes, end_syms):
     return sent
 
 
-def main(args, max_data_size=1000):
+def main(args):
     model_path = args.model_path
     hparams.set_hparam('batch_size', 1)
     hparams.add_hparam('is_training', False)
@@ -71,8 +76,8 @@ def main(args, max_data_size=1000):
     else:
         raise Exception("can not found checkpoint file")
 
-    src_vocab_bpe_file = os.path.join(model_path, 'vocab.bpe.{}.src'.format(hparams.bpe_num_symbols))
-    src_reverse_vocab = build_reverse_vocab_table(src_vocab_bpe_file, hparams)
+    src_vocab_file = os.path.join(model_path, 'vocab.src')
+    src_reverse_vocab = build_reverse_vocab_table(src_vocab_file, hparams)
     sess.run(tf.tables_initializer())
 
     index = 1
@@ -95,7 +100,7 @@ def main(args, max_data_size=1000):
                 if confidence is not None:
                     print(confidence[0])
                 print()
-                if index > max_data_size:
+                if index > args.max_data_size:
                     break
                 index += 1
             except tf.errors.OutOfRangeError:
@@ -107,5 +112,6 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--source', required=True)
     parser.add_argument('--model_path', required=True)
+    parser.add_argument('--max_data_size', default=10000)
     args = parser.parse_args()
     main(args)
