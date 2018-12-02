@@ -6,7 +6,7 @@ from tensorflow.python.layers.core import Dense
 from tensorflow.python.util import nest
 from tensorflow.contrib.seq2seq import LuongAttention, BahdanauAttention
 import math
-from models.seq_encoder import simple_embed_rnn, bidirectional_embed_rnn, single_rnn_cell
+from models.model_utils import simple_embed_rnn, bidirectional_embed_rnn, single_rnn_cell, MultiHeadAttention
 
 
 class AttentionModel(object):
@@ -270,6 +270,9 @@ def create_attention_mechanism(attention_option, num_units, memory,
         attention_mechanism = BahdanauAttention(num_units, memory, memory_sequence_length=source_sequence_length)
     elif attention_option == "normed_bahdanau":
         attention_mechanism = BahdanauAttention(num_units, memory, memory_sequence_length=source_sequence_length, normalize=True)
+    elif attention_option == "multi_head":
+        attention_mechanism = MultiHeadAttention(num_units, memory, memory_sequence_length=source_sequence_length,
+                                                 num_heads=4)
     else:
         raise ValueError("Unknown attention option %s" % attention_option)
 

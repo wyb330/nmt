@@ -1,7 +1,7 @@
 from tensorflow.contrib.training import HParams
 
 
-params_scale = 'large'  # ['small', 'medium', 'large']
+params_scale = 'small'  # ['small', 'medium', 'large']
 
 hparams = HParams(
     batch_size=16,
@@ -19,7 +19,7 @@ hparams = HParams(
     warmup_steps=4000,
     bucket=0,
     use_bpe=False,
-    attention_mechanism='scaled_luong',
+    attention_mechanism='multi_head',
     beam_width=1,
     encoder_type='bi',
     unit_type='gru',

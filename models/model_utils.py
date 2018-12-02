@@ -133,15 +133,14 @@ def bidirectional_embed_rnn(inputs,
 BaseAttentionMechanism = attention_wrapper._BaseAttentionMechanism  # pylint: disable=protected-access
 
 
-class TranformerAttention(BaseAttentionMechanism):
+class MultiHeadAttention(BaseAttentionMechanism):
     def __init__(self,
                  hidden_size,
                  memory,
                  num_heads,
-                 attention_dropout,
                  memory_sequence_length=None,
                  dtype=None,
-                 name="TranformerAttention"):
+                 name="MultiHeadAttention"):
         """Construct the AttentionMechanism mechanism.
 
         Args:
@@ -158,7 +157,7 @@ class TranformerAttention(BaseAttentionMechanism):
         if dtype is None:
             dtype = dtypes.float32
         wrapped_probability_fn = lambda score, _: probability_fn(score)
-        super(TranformerAttention, self).__init__(
+        super(MultiHeadAttention, self).__init__(
             query_layer=None,
             memory_layer=layers_core.Dense(
                 hidden_size, name="memory_layer", use_bias=False, dtype=dtype),
@@ -170,14 +169,6 @@ class TranformerAttention(BaseAttentionMechanism):
 
         self.hidden_size = hidden_size
         self.num_heads = num_heads
-        self.attention_dropout = attention_dropout
-        self.train = True
-        self.q_dense_layer = tf.layers.Dense(hidden_size, use_bias=False, name="q")
-        self.k_dense_layer = tf.layers.Dense(hidden_size, use_bias=False, name="k")
-        self.v_dense_layer = tf.layers.Dense(hidden_size, use_bias=False, name="v")
-
-        self.output_dense_layer = tf.layers.Dense(hidden_size, use_bias=False,
-                                                  name="output_transform")
 
     def split_heads(self, x):
         """Split x into different heads, and transpose the resulting value.
@@ -204,15 +195,41 @@ class TranformerAttention(BaseAttentionMechanism):
     def combine_heads(self, x):
         """Combine tensor that has been split.
         Args:
-          x: A tensor [batch_size, num_heads, length, hidden_size/num_heads]
+          x: A tensor [batch_size, num_heads, max_time]
         Returns:
-          A tensor with shape [batch_size, length, hidden_size]
+          A tensor with shape [batch_size, max_time]
         """
         with tf.name_scope("combine_heads"):
-            batch_size = tf.shape(x)[0]
-            length = tf.shape(x)[2]
-            x = tf.transpose(x, [0, 2, 1, 3])  # --> [batch, length, num_heads, depth]
-            return tf.reshape(x, [batch_size, length, self.hidden_size])
+            # batch_size = tf.shape(x)[0]
+            # return tf.reshape(x, [batch_size, -1])
+            return tf.reduce_mean(x, 1)
+
+    def _score(self, query, keys):
+        # Reshape from [batch_size, depth] to [batch_size, 1, depth]
+        # for matmul.
+        query = array_ops.expand_dims(query, 1)
+
+        # Inner product along the query units dimension.
+        # matmul shapes: query is [batch_size, 1, depth] and
+        #                keys is [batch_size, max_time, depth].
+        # the inner product is asked to **transpose keys' inner shape** to get a
+        # batched matmul on:
+        #   [batch_size, 1, depth] . [batch_size, depth, max_time]
+        # resulting in an output shape of:
+        #   [batch_size, 1, max_time].
+        # we then squeeze out the center singleton dimension.
+
+        # Split q, k, v into heads.
+        depth = (self.hidden_size // self.num_heads)
+        q = self.split_heads(query)  # [batch_size, num_heads, 1, depth]
+        k = self.split_heads(keys)  # [batch_size, num_heads, max_time, depth]
+        q *= depth ** -0.5
+        score = tf.matmul(q, k, transpose_b=True)  # [batch_size, num_heads, 1, max_time]
+        score = tf.squeeze(score, [2])  # [batch_size, num_heads, max_time]
+        # Recombine heads --> [batch_size, max_time]
+        score = self.combine_heads(score)
+
+        return score
 
     def __call__(self, query, state):
         """Score the query based on the keys and values.
@@ -229,61 +246,9 @@ class TranformerAttention(BaseAttentionMechanism):
             `[batch_size, alignments_size]` (`alignments_size` is memory's
             `max_time`).
         """
-
-        """Apply attention mechanism to x and y.
-        Args:
-          x: a tensor with shape [batch_size, length_x, hidden_size]
-          y: a tensor with shape [batch_size, length_y, hidden_size]
-          bias: attention bias that will be added to the result of the dot product.
-          cache: (Used during prediction) dictionary with tensors containing results
-            of previous attentions. The dictionary must have the items:
-                {"k": tensor with shape [batch_size, i, key_channels],
-                 "v": tensor with shape [batch_size, i, value_channels]}
-            where i is the current decoded length.
-        Returns:
-          Attention layer output with shape [batch_size, length_x, hidden_size]
-        """
-        with variable_scope.variable_scope(None, "transformer_attention", [query]):
-            # score = _transformer_score(query, self._keys)
-            # alignments = self._probability_fn(score, state)
-            # next_state = alignments
-            # return alignments, next_state
-
-            x = array_ops.expand_dims(query, 1)
-            y = self._keys
-            # Linearly project the query (q), key (k) and value (v) using different
-            # learned projections. This is in preparation of splitting them into
-            # multiple heads. Multi-head attention uses multiple queries, keys, and
-            # values rather than regular attention (which uses a single q, k, v).
-            q = self.q_dense_layer(x)
-            k = self.k_dense_layer(y)
-            v = self.v_dense_layer(y)
-
-            # Split q, k, v into heads.
-            q = self.split_heads(q)
-            k = self.split_heads(k)
-            v = self.split_heads(v)
-
-            # Scale q to prevent the dot product between q and k from growing too large.
-            depth = (self.hidden_size // self.num_heads)
-            q *= depth ** -0.5
-
-            # Calculate dot product attention
-            logits = tf.matmul(q, k, transpose_b=True)
-            # logits += bias
-            weights = tf.nn.softmax(logits, name="attention_weights")
-            if self.train:
-                weights = tf.nn.dropout(weights, 1.0 - self.attention_dropout)
-            attention_output = tf.matmul(weights, v)
-
-            # Recombine heads --> [batch_size, length, hidden_size]
-            attention_output = self.combine_heads(attention_output)
-
-            # Run the combined outputs through another linear projection layer.
-            attention_output = self.output_dense_layer(attention_output)
-
-        return attention_output, attention_output
-
-
-
+        with variable_scope.variable_scope(None, "multihead_attention", [query]):
+            score = self._score(query, self._keys)
+        alignments = self._probability_fn(score, state)
+        next_state = alignments
+        return alignments, next_state
 
